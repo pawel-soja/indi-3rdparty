@@ -46,6 +46,10 @@
 static bool warn_roi_height = true;
 static bool warn_roi_width = true;
 
+// ASICamera2Boost
+static ASI_ERROR_CODE (*ASIGetVideoDataPointer)(int iCameraID, unsigned char** pBuffer, int iWaitms);
+
+
 #ifdef USE_SIMULATION
 static int _ASIGetNumOfConnectedCameras()
 {
@@ -63,6 +67,34 @@ static ASI_ERROR_CODE _ASIGetCameraProperty(ASI_CAMERA_INFO *pASICameraInfo, int
 # define _ASIGetCameraProperty ASIGetCameraProperty
 #endif
 
+#include <dlfcn.h>
+
+class AsiCamera2Boost
+{
+public:
+    static bool init()
+    {
+        void * handle = dlopen(NULL, RTLD_LAZY);
+        if (!loadFunction(handle, ASIGetVideoDataPointer, "ASIGetVideoDataPointer"))
+            return false;
+
+        /* ... */
+
+        return true;
+    }
+
+    template <typename FuncPointer>
+    static bool loadFunction(void *handle, FuncPointer &funcPointer, const char *name)
+    {
+        funcPointer = reinterpret_cast<FuncPointer>(dlsym(handle, name));
+        return funcPointer != nullptr;
+    }
+
+    static ASI_ERROR_CODE (*ASIGetVideoDataPointer)(int iCameraID, unsigned char** pBuffer, int iWaitms);
+};
+
+ASI_ERROR_CODE (*AsiCamera2Boost::ASIGetVideoDataPointer)(int iCameraID, unsigned char** pBuffer, int iWaitms) = nullptr;
+
 static class Loader
 {
     INDI::Timer hotPlugTimer;
@@ -70,6 +102,11 @@ static class Loader
 public:
     Loader()
     {
+        if (AsiCamera2Boost::init())
+        {
+            fprintf(stderr, "Found ASICamera2Boost Library\n");
+        }
+
         load(false);
 
         hotPlugTimer.start(1000);
@@ -188,6 +225,62 @@ void ASICCD::workerStreamVideo(const std::atomic_bool &isAboutToQuit)
 
             usleep(100);
             continue;
+        }
+
+        if (mCurrentVideoFormat == ASI_IMG_RGB24)
+            for (uint32_t i = 0; i < totalBytes; i += 3)
+                std::swap(targetFrame[i], targetFrame[i + 2]);
+
+        Streamer->newFrame(targetFrame, totalBytes);
+    }
+
+    ASIStopVideoCapture(mCameraInfo.CameraID);
+}
+
+void ASICCD::workerStreamVideoBoost(const std::atomic_bool &isAboutToQuit)
+{
+    ASI_ERROR_CODE ret;
+    double ExposureRequest = 1.0 / Streamer->getTargetFPS();
+    long uSecs = static_cast<long>(ExposureRequest * 950000.0);
+
+    ret = ASISetControlValue(mCameraInfo.CameraID, ASI_EXPOSURE, uSecs, ASI_FALSE);
+    if (ret != ASI_SUCCESS)
+    {
+        LOGF_ERROR("Failed to set exposure duration (%s).", Helpers::toString(ret));
+    }
+
+    ret = ASIStartVideoCapture(mCameraInfo.CameraID);
+    if (ret != ASI_SUCCESS)
+    {
+        LOGF_ERROR("Failed to start video capture (%s).", Helpers::toString(ret));
+    }
+
+    while (!isAboutToQuit)
+    {
+        int waitMS    = static_cast<int>((ExposureRequest * 2000.0) + 500);
+        uint8_t *targetFrame = nullptr;
+        uint32_t totalBytes  = PrimaryCCD.getFrameBufferSize();
+
+        ret = ASIGetVideoDataPointer(mCameraInfo.CameraID, &targetFrame, waitMS);
+
+        if (ret != ASI_SUCCESS)
+        {
+            if (ret != ASI_ERROR_TIMEOUT)
+            {
+                Streamer->setStream(false);
+                LOGF_ERROR("Failed to read video data (%s).", Helpers::toString(ret));
+                break;
+            }
+
+            usleep(100);
+            continue;
+        }
+
+        if (targetFrame == nullptr)
+        {
+            LOG_ERROR("Invalid stream buffer pointer.");
+            Streamer->setStream(false);
+            break;
         }
 
         if (mCurrentVideoFormat == ASI_IMG_RGB24)
@@ -1034,7 +1127,11 @@ bool ASICCD::StartStreaming()
         }
     }
 #endif
-    mWorker.run(std::bind(&ASICCD::workerStreamVideo, this, std::placeholders::_1));
+    if (ASIGetVideoDataPointer != nullptr)
+        mWorker.run(std::bind(&ASICCD::workerStreamVideoBoost, this, std::placeholders::_1));
+    else
+        mWorker.run(std::bind(&ASICCD::workerStreamVideo, this, std::placeholders::_1));
+
     return true;
 }
 

@@ -40,7 +40,7 @@ set(indi_asi_SRCS
    )
 
 add_executable(indi_asi_ccd ${indi_asi_SRCS})
-target_link_libraries(indi_asi_ccd ${INDI_LIBRARIES} ${CFITSIO_LIBRARIES} ${ASI_LIBRARIES} ${USB1_LIBRARIES} ${ZLIB_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(indi_asi_ccd ${INDI_LIBRARIES} ${CFITSIO_LIBRARIES} ${ASI_LIBRARIES} ${USB1_LIBRARIES} ${ZLIB_LIBRARY} ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_DL_LIBS})
 if (HAVE_WEBSOCKET)
     target_link_libraries(indi_asi_ccd ${Boost_LIBRARIES})
 endif()

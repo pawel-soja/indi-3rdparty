@@ -83,6 +83,7 @@ private:
 private:
     Temporary::SingleWorker mWorker;
     void workerStreamVideo(const std::atomic_bool &isAboutToQuit);
+    void workerStreamVideoBoost(const std::atomic_bool &isAboutToQuit);
     void workerBlinkExposure(const std::atomic_bool &isAboutToQuit, int blinks, float duration);
     void workerExposure(const std::atomic_bool &isAboutToQuit, float duration);
 
