@@ -63,15 +63,76 @@ static ASI_ERROR_CODE _ASIGetCameraProperty(ASI_CAMERA_INFO *pASICameraInfo, int
 # define _ASIGetCameraProperty ASIGetCameraProperty
 #endif
 
+#include <inditimer.h>
+#include <libusb-1.0/libusb.h>
+class UsbHotPlugEvent
+{
+public:
+    UsbHotPlugEvent()
+    {
+        libusb_init(&mContext);
+        libusb_hotplug_register_callback(
+                mContext,
+                static_cast<libusb_hotplug_event>(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED | LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT),
+                LIBUSB_HOTPLUG_NO_FLAGS,
+                LIBUSB_HOTPLUG_MATCH_ANY, LIBUSB_HOTPLUG_MATCH_ANY,
+                LIBUSB_HOTPLUG_MATCH_ANY,
+                [](struct libusb_context *, struct libusb_device *, libusb_hotplug_event, void *user_data){
+                    static_cast<UsbHotPlugEvent *>(user_data)->event();
+                    return 0;
+                },
+                this,
+                &mCallbackHandle
+        );
+
+        timer.callOnTimeout([this]{
+            libusb_handle_events_completed(mContext, nullptr);
+        });
+        timer.start(1000);
+    }
+
+    ~UsbHotPlugEvent()
+    {
+        libusb_hotplug_deregister_callback(mContext, mCallbackHandle);
+        libusb_exit(mContext);
+    }
+
+    void callOnEvent(const std::function<void()> &callback)
+    {
+        mCallback = callback;
+    }
+
+protected:
+    virtual void event()
+    {
+        if (mCallback)
+            mCallback();
+    }
+
+private:
+    INDI::Timer timer;
+    libusb_context *mContext;
+    libusb_hotplug_callback_handle mCallbackHandle;
+    std::function<void()> mCallback;
+};
+
 static class Loader
 {
-        INDI::Timer hotPlugTimer;
         std::map<int, std::shared_ptr<ASICCD>> cameras;
+        UsbHotPlugEvent mUsbHotPlugEvent;
     public:
         Loader()
         {
             load(false);
 
+            mUsbHotPlugEvent.callOnEvent([this]{
+                if (getCountOfConnectedCameras() != cameras.size())
+                {
+                    load(true);
+                }
+            });
+
+            return;
             hotPlugTimer.start(1000);
             hotPlugTimer.callOnTimeout([&]
             {
