@@ -22,7 +22,11 @@ jobs:
           path: ./packages/
 
       - name: Install INDI Core
-        run: $(command -v sudo) tar -hxvf packages/indi-core-package.tar --strip-components=1 -C /
+        run: |
+             command -v bsdtar >/dev/null 2>&1 && \
+             $(command -v sudo) bsdtar -xvf packages/indi-core-package.tar --strip-components=1 -C / || \
+             $(command -v sudo)   tar -hxvf packages/indi-core-package.tar --strip-components=1 -C /
+
 
       - name: Build INDI 3rd Party Libraries
         run: indi-3rdparty/scripts/indi-3rdparty-libs-build.sh
