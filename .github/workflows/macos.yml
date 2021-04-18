@@ -17,8 +17,8 @@ jobs:
         with:
           repo: indilib/indi
           branch: master
-          workflow: default.yml
-          name: indi-core-package-${{ matrix.container }}
+          workflow: macos.yml
+          name: indi-core-package-macos
           path: ./packages/
 
       - name: Install INDI Core
