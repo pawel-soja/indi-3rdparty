@@ -20,7 +20,6 @@ cmake \
     -DCMAKE_INSTALL_PREFIX=/usr/local \
     -DFIX_WARNINGS=ON \
     -DCMAKE_BUILD_TYPE=$1 \
-    -DINDI_BUILD_UNITTESTS=ON \
     -DBUILD_LIBS=1 \
     . $SRCS
 
