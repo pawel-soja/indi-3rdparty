@@ -20,7 +20,7 @@ function (install_imported)
             message (FATAL_ERROR "install_imported: ${type} not supported")
         endif ()
 
-        if (${location} STREQUAL "location-NOTFOUND")
+        if (${location} STREQUAL "${target}-NOTFOUND")
             return ()
         endif ()
 
