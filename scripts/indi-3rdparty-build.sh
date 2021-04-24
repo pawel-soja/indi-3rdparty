@@ -16,7 +16,7 @@ SRCS=$(dirname $(realpath $0))/..
 
 mkdir -p build/indi-3rdparty
 pushd build/indi-3rdparty
-/snap/bin/cmake \
+cmake \
     -DCMAKE_INSTALL_PREFIX=/usr/local \
     -DFIX_WARNINGS=ON \
     -DCMAKE_BUILD_TYPE=$1 \
