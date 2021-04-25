@@ -19,7 +19,7 @@ case "$OS" in
             git \
             cfitsio libnova libusb curl \
             gsl jpeg fftw \
-            ffmpeg libftdi libraw libdc1394 libgphoto2
+            ffmpeg libftdi libraw libdc1394 libgphoto2 librtlsdr
         ;;
     Linux)
         . /etc/os-release
