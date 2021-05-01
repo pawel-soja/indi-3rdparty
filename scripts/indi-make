@@ -118,10 +118,7 @@ imake_list_drivers () {
 
 install_googletest () {
     echo "Installing googletest..."
-    if [[ -v CLEAN ]]; then
-        rm -rf $ROOT/build/googletest
-    fi
-
+    [[ $CLEAN == "YES" ]] && rm -rf $ROOT/build/googletest || true
     test -d googletest-src || git clone https://github.com/google/googletest.git $ROOT/googletest-src
     mkdir -p $ROOT/build/googletest
     pushd $ROOT/build/googletest
@@ -147,7 +144,7 @@ install_deb_requisites () {
                     # $(command -v sudo) apt-get update
                     # $(command -v sudo) apt-get upgrade -y
                     $(command -v sudo) apt-get install -y \
-                        cdbs
+                        cdbs dh-make
                     ;;
                 *)
                     echo "Cannot build debian package."
@@ -251,9 +248,7 @@ install_requisites () {
 
 imake_all () {
     # Clean
-    if [[ -v CLEAN ]]; then
-        rm -rf $ROOT/build/indi-3rdparty
-    fi
+    [[ $CLEAN == "YES" ]] && rm -rf $ROOT/build/indi-3rdparty || true
 
     # Configure
     mkdir -p $ROOT/build/indi-3rdparty
@@ -264,16 +259,16 @@ imake_all () {
         -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
         -DINDI_BUILD_UNITTESTS=$BUILD_UNITTESTS \
         -DBUILD_LIBS=$1 \
-        . $SRCS/$MODULE
+        . $SRCS
 
     # Build
-    if [[ -v BUILD ]]; then
+    if [[ $BUILD == "YES" ]]; then
         echo "Building libs..."
         make -j$JOBS
     fi
 
     # Install
-    if [[ -v INSTALL ]]; then
+    if [[ $INSTALL == "YES" ]]; then
         echo "Installing libs..."
         $(command -v sudo) make install
     fi
@@ -285,9 +280,7 @@ imake_from_list () {
     for MODULE in $@
     do
         # Clean
-        if [[ -v CLEAN ]]; then
-            rm -rf $ROOT/build/indi-3rdparty/$MODULE
-        fi
+        [[ $CLEAN == "YES" ]] && rm -rf $ROOT/build/indi-3rdparty/$MODULE || true
 
         mkdir -p $ROOT/build/indi-3rdparty/$MODULE
         pushd $ROOT/build/indi-3rdparty/$MODULE
@@ -301,27 +294,26 @@ imake_from_list () {
             . $SRCS/$MODULE
 
         # Build
-        if [[ -v BUILD ]]; then
+        if [[ $BUILD == "YES" ]]; then
             echo "Building ${MODULE}..."
             make -j$JOBS
         fi
 
         # Build deb package
-        if [[ -v DEB ]]; then
+        if [[ $DEB == "YES" ]]; then
             # Clean
-            if [[ -v CLEAN ]]; then
-                rm -rf $ROOT/build/indi-3rdparty-modules/$MODULE
-            fi
+            [[ $CLEAN == "YES" ]] && rm -rf $ROOT/build/indi-3rdparty-modules/$MODULE || true
+
             mkdir -p $ROOT/build/indi-3rdparty-modules/$MODULE
             pushd $ROOT/build/indi-3rdparty-modules/$MODULE
             echo "Packaging ${MODULE}..."
             cp -a $SRCS/$MODULE/ .
             cp -a $SRCS/debian/$MODULE/ ./debian/
             cp -a $SRCS/cmake_modules ./
-            fakeroot debian/rules -j$JOBS binary &>/dev/null
+            fakeroot debian/rules -j$JOBS binary
 
             # Install deb package
-            if [[ -v INSTALL ]]; then
+            if [[ $INSTALL == "YES" ]]; then
                 echo "Installing ${MODULE} from packages..."
                 dpkg -i $(ls ../*.deb | grep -v dbg) || true
                 #PKG_DBG=$(ls ../*.deb | grep  dbg)
@@ -332,7 +324,7 @@ imake_from_list () {
             popd
         else
             # Install
-            if [[ -v INSTALL ]]; then
+            if [[ $INSTALL == "YES" ]]; then
                 echo "Installing ${MODULE}..."
                 $(command -v sudo) make install
             fi
@@ -391,6 +383,7 @@ do
         echo $DRVS
         echo
         echo "If the driver is missing, install the necessary libraries."
+        echo
         exit 1
         ;;
     -r|--requisites)
@@ -409,26 +402,26 @@ done
 set -- "${POSITIONAL[@]}"
 
 # Requisites
-if [[ -v REQUISITES ]]; then
+if [[ $REQUISITES == "YES" ]]; then
     install_requisites
-    [[ -v DEB ]] && install_deb_requisites
+    [[ $DEB == "YES" ]] && install_deb_requisites || true
     install_googletest
 fi
 
 # Build all
-if ( [[ -v BUILD_ALL_LIBS ]] || [[ -v BUILD_ALL_DRVS ]] ) && [[ ! -v DEB ]]; then
-    [[ -v BUILD_ALL_LIBS ]] && imake_all 1
-    [[ -v BUILD_ALL_DRVS ]] && imake_all 0
+if ( [[ $BUILD_ALL_LIBS == "YES" ]] || [[ $BUILD_ALL_DRVS == "YES" ]] ) && [[ $DEB != "YES" ]]; then
+    [[ $BUILD_ALL_LIBS == "YES" ]] && imake_all 1
+    [[ $BUILD_ALL_DRVS == "YES" ]] && imake_all 0
     exit 0
 fi
 
 # Build module by module
-if [[ -v BUILD_ALL_LIBS ]]; then
+if [[ $BUILD_ALL_LIBS == "YES" ]]; then
     echo "Build all libs."
     imake_from_list $(imake_list_libs)
 fi
 
-if [[ -v BUILD_ALL_DRVS ]]; then
+if [[ $BUILD_ALL_DRVS == "YES" ]]; then
     echo "Build all drivers."
     imake_from_list $(imake_list_drivers)
 fi
