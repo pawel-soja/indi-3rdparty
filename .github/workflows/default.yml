@@ -33,13 +33,13 @@ jobs:
         run: $(command -v sudo) tar -hxvf packages/indi-core-package.tar --strip-components=1 -C /
 
       - name: Build INDI 3rd Party Libraries
-        run: indi-3rdparty/indi-make --all-libs --build
+        run: indi-3rdparty/scripts/indi-make --all-libs --build
 
       - name: Install INDI 3rd Party Libraries
-        run: indi-3rdparty/indi-make --all-libs --install
+        run: indi-3rdparty/scripts/indi-make --all-libs --install
 
       - name: Build INDI 3rd Party Drivers
-        run: indi-3rdparty/indi-make --all-drivers --build
+        run: indi-3rdparty/scripts/indi-make --all-drivers --build
 
       - name: Install INDI 3rd Party Drivers
-        run: indi-3rdparty/indi-make --all-drivers --install
+        run: indi-3rdparty/scripts/indi-make --all-drivers --install
