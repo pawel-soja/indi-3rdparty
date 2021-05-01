@@ -92,7 +92,7 @@ help () {
 
 [[ $# -eq 0 ]] && help
 
-make_list_libs () {
+imake_list_libs () {
     rm -rf $ROOT/build/indi-3rdparty-check-libs 1>&2
     mkdir -p $ROOT/build/indi-3rdparty-check-libs 1>&2
     pushd $ROOT/build/indi-3rdparty-check-libs 1>&2
@@ -102,12 +102,12 @@ make_list_libs () {
     rm -rf $ROOT/build/indi-3rdparty-check-libs 1>&2
 }
 
-make_list_drivers () {
+imake_list_drivers () {
     rm -rf $ROOT/build/indi-3rdparty-check-drivers 1>&2
     mkdir -p $ROOT/build/indi-3rdparty-check-drivers 1>&2
     pushd $ROOT/build/indi-3rdparty-check-drivers 1>&2
     cmake -DBUILD_LIBS=0 . $SRCS 1>&2
-    echo "$(join -v 1 <(\ls -d */ | sed 's#/##' | grep -v CMakeFiles | sort) <(make_list_libs))"
+    echo "$(join -v 1 <(\ls -d */ | sed 's#/##' | grep -v CMakeFiles | sort) <(imake_list_libs))"
     popd 1>&2
     rm -rf $ROOT/build/indi-3rdparty-check-drivers 1>&2
 }
@@ -118,7 +118,6 @@ make_list_drivers () {
 
 install_googletest () {
     echo "Installing googletest..."
-
     if [[ -v CLEAN ]]; then
         rm -rf $ROOT/build/googletest
     fi
@@ -136,7 +135,7 @@ install_googletest () {
 }
 
 install_deb_requisites () {
-    echo "Install requisites"
+    echo "Installing debian package requisites..."
     OS=$(uname -s)
     
     case "$OS" in
@@ -166,7 +165,7 @@ install_deb_requisites () {
 }
 
 install_requisites () {
-    echo "Install requisites"
+    echo "Installing requisites..."
     # TODO
     # libtiff-devel ?
 
@@ -250,7 +249,7 @@ install_requisites () {
     esac
 }
 
-make_all () {
+imake_all () {
     # Clean
     if [[ -v CLEAN ]]; then
         rm -rf $ROOT/build/indi-3rdparty
@@ -281,9 +280,8 @@ make_all () {
     popd
 }
 
-make_from_list () {
+imake_from_list () {
     # Build, build package, install
-    echo "make_from_list: $@"
     for MODULE in $@
     do
         # Clean
@@ -324,7 +322,7 @@ make_from_list () {
 
             # Install deb package
             if [[ -v INSTALL ]]; then
-                echo "Installing ${MODULE} from package..."
+                echo "Installing ${MODULE} from packages..."
                 dpkg -i $(ls ../*.deb | grep -v dbg) || true
                 #PKG_DBG=$(ls ../*.deb | grep  dbg)
                 # [[ -n $PKG_DBG ]] && dpkg -i $PKG_DBG
@@ -383,15 +381,16 @@ do
         BUILD_ALL_DRVS=YES
         ;;
     -l|--list)
-        #list
-        LIBS="$(make_list_libs)"
-        DRVS="$(make_list_drivers)"
+        LIBS="$(imake_list_libs)"
+        DRVS="$(imake_list_drivers)"
         echo
-        echo "Available libs:"
+        echo "Available libraries:"
         echo $LIBS
         echo
         echo "Available drivers:"
         echo $DRVS
+        echo
+        echo "If the driver is missing, install the necessary libraries."
         exit 1
         ;;
     -r|--requisites)
@@ -416,25 +415,25 @@ if [[ -v REQUISITES ]]; then
     install_googletest
 fi
 
-# Fast build
+# Build all
 if ( [[ -v BUILD_ALL_LIBS ]] || [[ -v BUILD_ALL_DRVS ]] ) && [[ ! -v DEB ]]; then
-    [[ -v BUILD_ALL_LIBS ]] && make_all 1
-    [[ -v BUILD_ALL_DRVS ]] && make_all 0
-    exit
+    [[ -v BUILD_ALL_LIBS ]] && imake_all 1
+    [[ -v BUILD_ALL_DRVS ]] && imake_all 0
+    exit 0
 fi
 
 # Build module by module
 if [[ -v BUILD_ALL_LIBS ]]; then
     echo "Build all libs."
-    make_from_list $(make_list_libs)
+    imake_from_list $(imake_list_libs)
 fi
 
 if [[ -v BUILD_ALL_DRVS ]]; then
     echo "Build all drivers."
-    make_from_list $(make_list_drivers)
+    imake_from_list $(imake_list_drivers)
 fi
 
 # Build others
 if [[ $# -gt 0 ]]; then
-    make_from_list $@
+    imake_from_list $@
 fi
