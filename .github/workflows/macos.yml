@@ -28,13 +28,14 @@ jobs:
         run: $(command -v sudo) bsdtar -xvf packages/indi-core-package.tar --strip-components=1 -C / || true
 
       - name: Build INDI 3rd Party Libraries
-        run: indi-3rdparty/scripts/indi-3rdparty-libs-build.sh
+        run: indi-3rdparty/indi-make --all-libs --build
 
       - name: Install INDI 3rd Party Libraries
-        run: indi-3rdparty/scripts/indi-3rdparty-libs-install.sh
+        run: indi-3rdparty/indi-make --all-libs --install
 
       - name: Build INDI 3rd Party Drivers
-        run: indi-3rdparty/scripts/indi-3rdparty-build.sh
+        run: indi-3rdparty/indi-make --all-drivers --build
 
       - name: Install INDI 3rd Party Drivers
-        run: indi-3rdparty/scripts/indi-3rdparty-install.sh
+        run: indi-3rdparty/indi-make --all-drivers --install
+
